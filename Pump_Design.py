@@ -260,43 +260,43 @@ if st.button("Calculate Pump Requirements"):
         else:
             st.error("No suitable pump found - showing highest capacity option")
         
-                # Prepare report data
-                report_data = {
-                    'inputs': {
-                        'Borewell Yield (LPH)': f"{yield_lph:,.0f}",
-                        'Total Tap Connections': num_taps,
-                        'Daily Water Demand per Tap (Liters)': demand_per_tap,
-                        'Hours Available for Pumping': pumping_hours,
-                        'Pump Installation Depth (m)': installation_depth,
-                        'Tank Height from Ground (m)': tank_height,
-                        'Pumping Line Length (m)': pumping_line_length,
-                        'Pipe Diameter (mm)': pipe_diameter_mm,
-                        'Pipe Material': pipe_type,
-                        'Safety Margin (%)': safety_margin,
-                        'Pump Efficiency (%)': efficiency,
-                        'Head per Pump Stage (m)': head_per_stage,
-                    },
-                    'results': {
-                        'Total Daily Demand (liters)': f"{demand_liters:,.0f}",
-                        'Required Flow Rate (LPH)': f"{flow_lph:,.0f}",
-                        'Total Dynamic Head (TDH)': f"{tdh:.1f} m",
-                        'Required Power': f"{hp:.1f} HP → Use {hp_rounded} HP",
-                        'Number of Stages': num_stages,
-                        'Flow Velocity (m/s)': f"{velocity:.2f}",
-                        'Pipe Sizing Status': velocity_status
-                    },
-                    'recommendations': [
-                        f"Recommended pump: {selected_pump['Pump']} ({selected_pump['HP']} HP, {selected_pump['No of Stages']} stages)",
-                        f"Head range of pump: {selected_pump['Min Head (m)']} - {selected_pump['Max Head (m)']} m",
-                        f"TDH falls within range: {'Yes' if selected_pump['Min Head (m)'] <= tdh <= selected_pump['Max Head (m)'] else 'No'}"
-                    ]
-                }
-        
-                # Generate PDF
-                pdf_bytes = create_pdf_report(report_data)
-                b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-                href = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="Pump_Selection_Report.pdf">📄 Download PDF Report</a>'
-                st.markdown(href, unsafe_allow_html=True)
+        # Prepare report data
+        report_data = {
+            'inputs': {
+                'Borewell Yield (LPH)': f"{yield_lph:,.0f}",
+                'Total Tap Connections': num_taps,
+                'Daily Water Demand per Tap (Liters)': demand_per_tap,
+                'Hours Available for Pumping': pumping_hours,
+                'Pump Installation Depth (m)': installation_depth,
+                'Tank Height from Ground (m)': tank_height,
+                'Pumping Line Length (m)': pumping_line_length,
+                'Pipe Diameter (mm)': pipe_diameter_mm,
+                'Pipe Material': pipe_type,
+                'Safety Margin (%)': safety_margin,
+                'Pump Efficiency (%)': efficiency,
+                'Head per Pump Stage (m)': head_per_stage,
+            },
+            'results': {
+                'Total Daily Demand (liters)': f"{demand_liters:,.0f}",
+                'Required Flow Rate (LPH)': f"{flow_lph:,.0f}",
+                'Total Dynamic Head (TDH)': f"{tdh:.1f} m",
+                'Required Power': f"{hp:.1f} HP → Use {hp_rounded} HP",
+                'Number of Stages': num_stages,
+                'Flow Velocity (m/s)': f"{velocity:.2f}",
+                'Pipe Sizing Status': velocity_status
+            },
+            'recommendations': [
+                f"Recommended pump: {selected_pump['Pump']} ({selected_pump['HP']} HP, {selected_pump['No of Stages']} stages)",
+                f"Head range of pump: {selected_pump['Min Head (m)']} - {selected_pump['Max Head (m)']} m",
+                f"TDH falls within range: {'Yes' if selected_pump['Min Head (m)'] <= tdh <= selected_pump['Max Head (m)'] else 'No'}"
+            ]
+        }
+
+        # Generate PDF
+        pdf_bytes = create_pdf_report(report_data)
+        b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
+        href = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="Pump_Selection_Report.pdf">📄 Download PDF Report</a>'
+        st.markdown(href, unsafe_allow_html=True)
 
 
 # Add some spacings
