@@ -301,9 +301,14 @@ if st.button("Calculate Pump Requirements"):
 
         # Generate PDF
         pdf_bytes = create_pdf_report(report_data)
-        b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
-        href = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="Pump_Selection_Report.pdf">📄 Download PDF Report</a>'
-        st.markdown(href, unsafe_allow_html=True)
+
+        st.download_button(
+            label="📄 Download PDF Report",
+            data=pdf_bytes,
+            file_name="Pump_Selection_Report.pdf",
+            mime="application/pdf"
+        )
+
 
 
 # Add some spacings
