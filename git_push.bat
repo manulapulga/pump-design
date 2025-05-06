@@ -4,7 +4,7 @@ setlocal
 :: Set your GitHub repo URL
 set REPO_URL=https://github.com/manulapulga/pump-design.git
 
-:: Set branch name (change if your branch is not 'main')
+:: Use main branch
 set BRANCH=main
 
 :: Initialize git if not already done
