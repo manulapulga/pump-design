@@ -45,7 +45,7 @@ def create_pdf_report(data):
     pdf.set_font("Arial", size=10)
     
     for result, value in data['results'].items():
-        pdf.cell(200, 6, txt=f"{result}: {value}", ln=1)
+        pdf.cell(200, 6, txt=f"{result}: {str(value).replace(',', '')}", ln=1)
     
     # Recommendations
     if 'recommendations' in data:
