@@ -63,7 +63,7 @@ def create_pdf_report(data):
             safe_rec = str(rec).encode('ascii', 'ignore').decode('ascii')
             pdf.cell(200, 6, txt=f"- {safe_rec}", ln=1)
 
-    return pdf.output(dest='S').encode('latin1')
+    return pdf.output(dest='S')
 
 
 # Load pump data function
