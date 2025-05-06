@@ -20,44 +20,51 @@ PIPE_SIZING = {
 # Hazen-Williams C values
 C_VALUES = {"PVC": 140, "GI": 120}
 
-# Create PDF report function
+from fpdf import FPDF
+
 def create_pdf_report(data):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", size=12)
-    
+
     # Title
     pdf.cell(200, 10, txt="Submersible Pump Selection Report", ln=1, align='C')
     pdf.ln(10)
-    
+
     # Input Parameters
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(200, 10, txt="Input Parameters:", ln=1)
     pdf.set_font("Arial", size=10)
-    
+
     for param, value in data['inputs'].items():
-        pdf.cell(200, 6, txt=f"{param}: {value}", ln=1)
-    
+        safe_value = str(value).encode('ascii', 'ignore').decode('ascii')
+        safe_param = str(param).encode('ascii', 'ignore').decode('ascii')
+        pdf.cell(200, 6, txt=f"{safe_param}: {safe_value}", ln=1)
+
     # Results
     pdf.ln(5)
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(200, 10, txt="Calculation Results:", ln=1)
     pdf.set_font("Arial", size=10)
-    
+
     for result, value in data['results'].items():
-        pdf.cell(200, 6, txt=f"{result}: {str(value).replace(',', '')}", ln=1)
-    
+        safe_value = str(value).replace(',', '').encode('ascii', 'ignore').decode('ascii')
+        safe_result = str(result).encode('ascii', 'ignore').decode('ascii')
+        pdf.cell(200, 6, txt=f"{safe_result}: {safe_value}", ln=1)
+
     # Recommendations
     if 'recommendations' in data:
         pdf.ln(5)
         pdf.set_font("Arial", 'B', 12)
         pdf.cell(200, 10, txt="Recommendations:", ln=1)
         pdf.set_font("Arial", size=10)
-        
+
         for rec in data['recommendations']:
-            pdf.cell(200, 6, txt=f"- {rec}", ln=1)
-    
+            safe_rec = str(rec).encode('ascii', 'ignore').decode('ascii')
+            pdf.cell(200, 6, txt=f"- {safe_rec}", ln=1)
+
     return pdf.output(dest='S').encode('latin1')
+
 
 # Load pump data function
 def load_pump_data():
