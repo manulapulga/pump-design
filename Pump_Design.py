@@ -299,14 +299,25 @@ if st.button("Calculate Pump Requirements"):
             ]
         }
 
-        # Generate PDF
+        import base64
+
+        # Generate PDF report
         pdf_bytes = create_pdf_report(report_data)
+        
+        # Ensure the data is in bytes (it should already be, but let's confirm)
+        if isinstance(pdf_bytes, bytes):
+            pdf_data = pdf_bytes
+        else:
+            pdf_data = pdf_bytes.encode('latin1')
+        
+        # Streamlit download button for PDF
         st.download_button(
             label="Download PDF Report",
-            data=pdf_bytes,  # The PDF content as bytes
+            data=pdf_data,  # The PDF content as bytes
             file_name="Pump_Selection_Report.pdf",  # The file name for download
             mime="application/pdf"  # MIME type for PDFs
         )
+
 
 
 # Add some spacings
