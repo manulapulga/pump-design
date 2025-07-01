@@ -20,8 +20,6 @@ PIPE_SIZING = {
 # Hazen-Williams C values
 C_VALUES = {"PVC": 140, "GI": 120}
 
-from fpdf import FPDF
-
 def create_pdf_report(data):
     pdf = FPDF()
     pdf.add_page()
@@ -63,51 +61,87 @@ def create_pdf_report(data):
             safe_rec = str(rec).encode('ascii', 'ignore').decode('ascii')
             pdf.cell(200, 6, txt=f"- {safe_rec}", ln=1)
 
-    return pdf.output(dest='S')
+    # Return as bytes
+    return pdf.output(dest='S').encode('latin-1')
 
-
-# Load pump data function
+# Load pump data function with more robust column name handling
 def load_pump_data():
     try:
         pump_data = pd.read_excel("Pumps.xlsx")
-        # Clean up column names if needed
-        pump_data.columns = [col.strip() for col in pump_data.columns]
-        # Ensure data is sorted by HP and then by stages (low to high)
-        pump_data = pump_data.sort_values(['HP', 'No of Stages'])
+        
+        # Standardize column names (case insensitive, strip whitespace)
+        pump_data.columns = [col.strip().lower() for col in pump_data.columns]
+        
+        # Map expected column names to possible variations
+        column_mapping = {
+            'pump': ['pump', 'model', 'pump model'],
+            'phase': ['phase', 'power phase', 'type'],
+            'hp': ['hp', 'horsepower', 'power'],
+            'qmin': ['qmin', 'min flow', 'minimum flow (lph)'],
+            'qmax': ['qmax', 'max flow', 'maximum flow (lph)'],
+            'hmin': ['hmin', 'min head', 'minimum head (m)'],
+            'hmax': ['hmax', 'max head', 'maximum head (m)']
+        }
+        
+        # Find matching columns
+        final_columns = {}
+        for standard_name, possible_names in column_mapping.items():
+            for possible_name in possible_names:
+                if possible_name in pump_data.columns:
+                    final_columns[standard_name] = possible_name
+                    break
+        
+        # Check if we found all required columns
+        required_columns = ['pump', 'phase', 'hp', 'qmin', 'qmax', 'hmin', 'hmax']
+        missing_columns = [col for col in required_columns if col not in final_columns]
+        
+        if missing_columns:
+            st.error(f"Missing required columns in Excel file: {', '.join(missing_columns)}")
+            st.error("Please ensure your Excel file has columns for: Pump, Phase, HP, Qmin, Qmax, Hmin, Hmax")
+            return None
+        
+        # Rename columns to standard names
+        pump_data = pump_data.rename(columns={v: k for k, v in final_columns.items()})
+        
+        # Convert numeric columns to appropriate types
+        numeric_cols = ['hp', 'qmin', 'qmax', 'hmin', 'hmax']
+        for col in numeric_cols:
+            pump_data[col] = pd.to_numeric(pump_data[col], errors='coerce')
+        
+        # Sort by HP and then by Hmax (low to high)
+        pump_data = pump_data.sort_values(['hp', 'hmax'])
+        
         return pump_data
+    
     except Exception as e:
-        st.error(f"Error loading pump database: {e}")
+        st.error(f"Error loading pump database: {str(e)}")
         return None
 
-# Revised pump selection function with exact logic requested
-def select_pump(pump_data, required_hp, required_stages, required_tdh):
+# Revised pump selection function
+def select_pump(pump_data, required_hp, required_flow_lph, required_tdh):
     # First try to find exact HP match
-    exact_hp_pumps = pump_data[pump_data['HP'] == required_hp]
+    exact_hp_pumps = pump_data[pump_data['hp'] == required_hp]
     
-    # If exact HP exists, check stages
+    # If exact HP exists, check flow and head range
     if not exact_hp_pumps.empty:
         for _, pump in exact_hp_pumps.iterrows():
-            if pump['No of Stages'] >= required_stages:
-                if pump['Min Head (m)'] <= required_tdh <= pump['Max Head (m)']:
-                    return pump, "exact_match"
-                else:
-                    continue
+            if (pump['qmin'] <= required_flow_lph <= pump['qmax']) and \
+               (pump['hmin'] <= required_tdh <= pump['hmax']):
+                return pump, "exact_match"
         
-        # If no exact HP with sufficient stages, try next higher HP
-        higher_hp_pumps = pump_data[pump_data['HP'] > required_hp]
+        # If no exact HP with sufficient flow/head, try next higher HP
+        higher_hp_pumps = pump_data[pump_data['hp'] > required_hp]
         if not higher_hp_pumps.empty:
             for _, pump in higher_hp_pumps.iterrows():
-                if pump['No of Stages'] >= required_stages:
-                    if pump['Min Head (m)'] <= required_tdh <= pump['Max Head (m)']:
-                        return pump, "higher_hp_match"
-                    else:
-                        continue
+                if (pump['qmin'] <= required_flow_lph <= pump['qmax']) and \
+                   (pump['hmin'] <= required_tdh <= pump['hmax']):
+                    return pump, "higher_hp_match"
     
-    # If no matches yet, find first pump with HP >= required_hp
-    suitable_pumps = pump_data[pump_data['HP'] >= required_hp]
+    # If no matches yet, find first pump with HP >= required_hp that meets head requirements
+    suitable_pumps = pump_data[pump_data['hp'] >= required_hp]
     if not suitable_pumps.empty:
         for _, pump in suitable_pumps.iterrows():
-            if pump['Min Head (m)'] <= required_tdh <= pump['Max Head (m)']:
+            if pump['hmin'] <= required_tdh <= pump['hmax']:
                 return pump, "tdh_match"
     
     # Final fallback - highest capacity pump
@@ -182,7 +216,7 @@ if st.button("Calculate Pump Requirements"):
     hp_rounded = max(0.5, round(hp + 0.4))  # Round up to nearest 0.5 HP
     kw = hp * 0.7457
     
-    # Number of stages
+    # Number of stages (now just informational, not used for selection)
     num_stages = int(tdh / head_per_stage + 0.5)
     
     # Results display
@@ -211,7 +245,7 @@ if st.button("Calculate Pump Requirements"):
         st.markdown(f"""
         **Pump Specifications:**
         - Required Power: {hp:.1f} HP → **Use {hp_rounded} HP** ({kw:.1f} kW)
-        - Number of Stages: {num_stages}
+        - Estimated Stages: {num_stages} (based on {head_per_stage}m per stage)
         - Recommended RPM: 2850 (for standard 4" pumps)
         """)
     
@@ -236,7 +270,7 @@ if st.button("Calculate Pump Requirements"):
     pump_data = load_pump_data()
     
     if pump_data is not None:
-        selected_pump, match_type = select_pump(pump_data, hp_rounded, num_stages, tdh)
+        selected_pump, match_type = select_pump(pump_data, hp_rounded, flow_lph, tdh)
         
         # Display pump selection with appropriate message
         st.subheader("Recommended Pump")
@@ -244,26 +278,27 @@ if st.button("Calculate Pump Requirements"):
         
         with col_pump1:
             st.markdown(f"""
-            **Model:** {selected_pump['Pump']}  
-            **Phase:** {selected_pump['Phase']}  
-            **Power:** {selected_pump['HP']} HP  
-            **Stages:** {selected_pump['No of Stages']}  
+            **Model:** {selected_pump['pump']}  
+            **Phase:** {selected_pump['phase']}  
+            **Power:** {selected_pump['hp']} HP  
+            **Flow Range:** {selected_pump['qmin']}-{selected_pump['qmax']} LPH  
             """)
             
         with col_pump2:
             st.markdown(f"""
-            **Head Range:** {selected_pump['Min Head (m)']}-{selected_pump['Max Head (m)']} m  
+            **Head Range:** {selected_pump['hmin']}-{selected_pump['hmax']} m  
             **Your TDH:** {tdh:.1f} m  
-            **Compatibility:** {'✅ Within range' if selected_pump['Min Head (m)'] <= tdh <= selected_pump['Max Head (m)'] else '⚠️ Outside optimal range'}  
+            **Your Flow:** {flow_lph:,.0f} LPH  
+            **Compatibility:** {'✅ Within range' if selected_pump['hmin'] <= tdh <= selected_pump['hmax'] and selected_pump['qmin'] <= flow_lph <= selected_pump['qmax'] else '⚠️ Outside optimal range'}  
             """)
         
         # Add match type explanation
         if match_type == "exact_match":
-            st.success("Found pump matching exact HP and stage requirements")
+            st.success("Found pump matching exact HP, flow, and head requirements")
         elif match_type == "higher_hp_match":
-            st.warning(f"Using higher HP pump ({selected_pump['HP']} HP) that meets stage requirements")
+            st.warning(f"Using higher HP pump ({selected_pump['hp']} HP) that meets flow and head requirements")
         elif match_type == "tdh_match":
-            st.warning("Selected pump based on TDH requirements with different stages")
+            st.warning("Selected pump based on TDH requirements with different flow characteristics")
         else:
             st.error("No suitable pump found - showing highest capacity option")
         
@@ -288,14 +323,16 @@ if st.button("Calculate Pump Requirements"):
                 'Required Flow Rate (LPH)': f"{flow_lph:,.0f}",
                 'Total Dynamic Head (TDH)': f"{tdh:.1f} m",
                 'Required Power': f"{hp:.1f} HP → Use {hp_rounded} HP",
-                'Number of Stages': num_stages,
+                'Estimated Stages': num_stages,
                 'Flow Velocity (m/s)': f"{velocity:.2f}",
                 'Pipe Sizing Status': velocity_status
             },
             'recommendations': [
-                f"Recommended pump: {selected_pump['Pump']} ({selected_pump['HP']} HP, {selected_pump['No of Stages']} stages)",
-                f"Head range of pump: {selected_pump['Min Head (m)']} - {selected_pump['Max Head (m)']} m",
-                f"TDH falls within range: {'Yes' if selected_pump['Min Head (m)'] <= tdh <= selected_pump['Max Head (m)'] else 'No'}"
+                f"Recommended pump: {selected_pump['pump']} ({selected_pump['hp']} HP)",
+                f"Flow range of pump: {selected_pump['qmin']} - {selected_pump['qmax']} LPH",
+                f"Head range of pump: {selected_pump['hmin']} - {selected_pump['hmax']} m",
+                f"TDH falls within range: {'Yes' if selected_pump['hmin'] <= tdh <= selected_pump['hmax'] else 'No'}",
+                f"Flow rate falls within range: {'Yes' if selected_pump['qmin'] <= flow_lph <= selected_pump['qmax'] else 'No'}"
             ]
         }
 
@@ -304,7 +341,6 @@ if st.button("Calculate Pump Requirements"):
         b64_pdf = base64.b64encode(pdf_bytes).decode('utf-8')
         href = f'<a href="data:application/octet-stream;base64,{b64_pdf}" download="Pump_Selection_Report.pdf">📄 Download PDF Report</a>'
         st.markdown(href, unsafe_allow_html=True)
-
 
 # Add some spacings
 st.markdown("---")
