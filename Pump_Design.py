@@ -150,7 +150,7 @@ def select_pump(pump_data, required_hp, required_flow_lph, required_tdh):
 # Main app
 st.title("Submersible Pump Selector")
 st.markdown("""
-This tool calculates the required **TDH**, **Pump HP**, and **Number of Stages** for a submersible pump in water supply systems.
+This tool calculates the required **TDH**, **Pump HP**,**Discharge Range** and  **Head Range** for a submersible pump in water supply systems.
 The calculations consider pipe friction losses, velocity head, and include safety margins.
 """)
 
